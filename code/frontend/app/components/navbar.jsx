@@ -4,7 +4,6 @@ import { Search, MapPin, Route, Home } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useUserContext } from './user_context'
-
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 
@@ -12,29 +11,29 @@ export default function Navbar() {
   const router = useRouter()
   const { overlayOn, user } = useUserContext()
   const [activeTab, setActiveTab] = useState('/home')
-
+  
   const profileImageUrl = user?.profileImage
     ? `/api/uploads/${user.profileImage}`
     : '/default-avatar.png'
 
   const NavItem = ({ href, icon: Icon, title, isActive = false }) => (
-    <Link
-      href={href}
+    <Link 
+      href={href} 
       className="group relative flex items-center"
       onClick={() => setActiveTab(href)}
     >
       <div className={`
         relative p-2 rounded-xl transition-all duration-300 
-        ${activeTab === href
-          ? 'bg-gradient-to-br from-blue-500/30 to-blue-500/40 shadow-md'
+        ${activeTab === href 
+          ? 'bg-gradient-to-br from-blue-500/30 to-blue-500/40 shadow-md' 
           : 'hover:bg-white/10'
         }
       `}>
-        <Icon
+        <Icon 
           className={`
             w-5 h-5 transition-all duration-300 
-            ${activeTab === href
-              ? 'text-blue-400'
+            ${activeTab === href 
+              ? 'text-blue-400' 
               : 'text-white/70 group-hover:text-white'
             }
           `}
@@ -142,7 +141,7 @@ export default function Navbar() {
           >
             <Image
               src={
-                '/default-avatar.png'
+                 '/default-avatar.png'
               }
               width={36}
               height={36}

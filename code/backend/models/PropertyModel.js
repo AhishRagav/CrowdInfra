@@ -1,36 +1,96 @@
-import mongoose from 'mongoose'
+const mongoose = require('mongoose');
+const connectDBs = require('../config/db');
+let Property = null;
+let modelInitialized = false;
 
-// Ensure `propertiesDB` is initialized
-const propertySchema = new mongoose.Schema(
-  {
-    location: {
+const initializePropertyModel = async () => {
+  if (modelInitialized) return Property;
+ 
+  const { propertiesDB } = await connectDBs();
+  const propertySchema = new mongoose.Schema(
+    {
+      title: {
+        type: String,
+        required: true,
+        trim: true,
+      },
+      description: {
+        type: String,
+        required: true,
+        trim: true,
+      },
+      category: {
+        type: String,
+        enum: ['residential', 'commercial', 'industrial', 'land'],
+        required: true,
+      },
       type: {
         type: String,
-        enum: ['Point'],
+        enum: ['sell', 'rent', 'lease'],
         required: true,
       },
-      coordinates: {
-        type: [Number], // [longitude, latitude]
+      price: {
+        type: Number,
+        required: true,
+        min: 0,
+      },
+      area: {
+        type: Number, // in square feet
+        required: true,
+        min: 1,
+      },
+      contactNumber: {
+        type: String,
         required: true,
         validate: {
-          validator: function (coords) {
-            return coords.length === 2 // Must have exactly [lng, lat]
+          validator: function (num) {
+            return /^\d{10}$/.test(num) // Validate a 10-digit phone number
           },
-          message:
-            'Coordinates must be an array of two numbers [longitude, latitude].',
+          message: 'Invalid contact number. It must be 10 digits.',
         },
       },
+      location: {
+        type: {
+          type: String,
+          enum: ['Point'],
+          default: 'Point',
+        },
+        coordinates: {
+          type: [Number], // [longitude, latitude]
+          required: true,
+          validate: {
+            validator: function (coords) {
+              return coords.length === 2
+            },
+            message:
+              'Coordinates must be an array of two numbers [longitude, latitude].',
+          },
+        },
+      },
+      status: {
+        type: String,
+        enum: ['rented', 'sold', 'up_for_renting', 'available'],
+        required: true,
+      },
     },
-    status: {
-      type: String,
-      enum: ['rented', 'sold', 'up_for_renting'],
-      required: true,
-    },
-  },
-  { timestamps: true }
-)
+    { timestamps: true }
+  );
+  
+  // Bind to propertiesDB and assign to the global variable
+  Property = propertiesDB.model('Property', propertySchema);
+  modelInitialized = true;
+  return Property;
+};
 
-// **Create Geospatial Index**
-propertySchema.index({ location: '2dsphere' })
+// Initialize immediately
+initializePropertyModel().catch(err => console.error('Failed to initialize Property model:', err));
 
-export const Property = global.propertiesDB.model('Property', propertySchema)
+// Export an async function that ensures the model is available
+const getPropertyModel = async () => {
+  if (!Property) {
+    await initializePropertyModel();
+  }
+  return Property;
+};
+
+module.exports = getPropertyModel;

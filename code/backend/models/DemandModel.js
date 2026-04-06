@@ -1,59 +1,117 @@
-import mongoose from 'mongoose'
+const mongoose = require('mongoose')
+const connectDBs = require('../config/db')
 
-// Ensure `demandsDB` is initialized before use
-const demandSchema = new mongoose.Schema(
-  {
-    location: {
-      type: {
-        type: String,
-        enum: ['Point'],
-        required: true,
+let Demand = null
+let modelInitialized = false
+
+const initializeDemandModel = async () => {
+  if (modelInitialized) return Demand
+
+  const { demandsDB } = await connectDBs()
+
+  const demandSchema = new mongoose.Schema(
+    {
+      user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: false, // TODO: Change to true and get userid from token
       },
-      coordinates: {
-        type: [Number], // [longitude, latitude]
+      title: {
+        type: String,
         required: true,
-        validate: {
-          validator: function (coords) {
-            return coords.length === 2 // Ensure exactly 2 values
+        trim: true,
+      },
+      description: {
+        type: String,
+        required: true,
+        trim: true,
+      },
+      location: {
+        type: {
+          type: String,
+          enum: ['Point'],
+          required: true,
+        },
+        coordinates: {
+          type: [Number], // [longitude, latitude]
+          required: true,
+          validate: {
+            validator: function (coords) {
+              return coords.length === 2 // Ensure exactly 2 values
+            },
+            message:
+              'Coordinates must be an array of two numbers [longitude, latitude].',
           },
-          message:
-            'Coordinates must be an array of two numbers [longitude, latitude].',
         },
       },
+      category: {
+        type: String,
+        required: true,
+        enum: [
+          "infrastructure",
+          "public_service",
+          "transportation",
+          "utilities",
+          "education",
+          "healthcare",
+          "other",
+        ], // Extend as needed
+      },
+      status: {
+        type: String,
+        enum: ['fulfilled', 'not_fulfilled'],
+        default: 'not_fulfilled',
+      },
+      up_votes: {
+        type: Number,
+        default: 1,
+        min: 0,
+      },
+      upvotedBy: [
+        {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'User',
+        }
+      ],
+      comments: [
+        {
+          user: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User',
+          },
+          text: {
+            type: String,
+            required: true,
+          },
+          timestamp: {
+            type: Date,
+            default: Date.now,
+          },
+        }
+      ],
     },
-    category: {
-      type: String,
-      required: true,
-      enum: [
-        'hospital',
-        'bank',
-        'atm',
-        'canteen',
-        'road',
-        'water_supply',
-        'electricity',
-      ], // Extend as needed
-    },
-    status: {
-      type: String,
-      enum: ['fulfilled', 'not_fulfilled'],
-      default: 'not_fulfilled',
-    },
-    up_votes: {
-      type: Number,
-      default: 0,
-      min: 0, // Prevents negative votes
-    },
-    down_votes: {
-      type: Number,
-      default: 0,
-      min: 0, // Prevents negative votes
-    },
-  },
-  { timestamps: true }
+    { timestamps: true }
+  )
+
+  // ✅ Ensure geospatial indexing
+  demandSchema.index({ location: '2dsphere' })
+
+  Demand = demandsDB.model('Demand', demandSchema)
+  modelInitialized = true
+  return Demand
+}
+
+// ✅ Initialize immediately
+initializeDemandModel().catch((err) =>
+  console.error('Failed to initialize Demand model:', err)
 )
 
-// **GeoSpatial Index for Efficient Location-Based Queries**
-demandSchema.index({ location: '2dsphere' })
+// ✅ Export function to get Demand model
+const getDemandModel = async () => {
+  if (!Demand) {
+    await initializeDemandModel()
+  }
+  return Demand
+}
 
-export const Demand = global.demandsDB.model('Demand', demandSchema)
+module.exports = getDemandModel
